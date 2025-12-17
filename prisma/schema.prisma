@@ -1,0 +1,149 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Account {
+  id              Int              @id @default(autoincrement())
+  number          Int              @unique
+  name            String
+  type            String           // TILLGÅNG, SKULD, EGET_KAPITAL, INTÄKT, KOSTNAD
+  entries         Entry[]
+  recurringEntries RecurringEntry[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model Transaction {
+  id          Int          @id @default(autoincrement())
+  date        DateTime
+  description String
+  entries     Entry[]
+  attachments Attachment[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Entry {
+  id            Int         @id @default(autoincrement())
+  transactionId Int
+  accountId     Int
+  debit         Float       @default(0)
+  credit        Float       @default(0)
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  account       Account     @relation(fields: [accountId], references: [id])
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model RecurringTransaction {
+  id              Int                    @id @default(autoincrement())
+  description     String
+  frequency       String                 // MONTHLY, QUARTERLY, YEARLY
+  startDate       DateTime
+  endDate         DateTime?
+  dayOfMonth      Int                    // Vilket datum varje månad (1-31)
+  isActive        Boolean                @default(true)
+  lastGenerated   DateTime?
+  entries         RecurringEntry[]
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+}
+
+model RecurringEntry {
+  id                    Int                   @id @default(autoincrement())
+  recurringTransactionId Int
+  accountId             Int
+  debit                 Float                 @default(0)
+  credit                Float                 @default(0)
+  recurringTransaction  RecurringTransaction  @relation(fields: [recurringTransactionId], references: [id], onDelete: Cascade)
+  account               Account               @relation(fields: [accountId], references: [id])
+}
+
+model Attachment {
+  id            Int         @id @default(autoincrement())
+  transactionId Int
+  filename      String
+  originalName  String
+  mimeType      String
+  size          Int
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+}
+
+model Asset {
+  id                     Int      @id @default(autoincrement())
+  name                   String
+  purchaseDate           DateTime
+  purchasePrice          Float
+  depreciationRate       Float    // Avskrivningsprocent (t.ex. 20 för 20%)
+  depreciationMethod     String   @default("LINEAR") // LINEAR, DECLINING
+  accountId              Int      // Konto 1220
+  currentValue           Float    // Nuvarande bokföringsvärde
+  totalDepreciated       Float    @default(0) // Totalt avskrivet
+  isFullyDepreciated     Boolean  @default(false)
+  notes                  String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  depreciations          Depreciation[]
+}
+
+model Depreciation {
+  id              Int      @id @default(autoincrement())
+  assetId         Int
+  year            Int
+  amount          Float
+  transactionId   Int?     // Länk till verifikation om den skapats
+  createdAt       DateTime @default(now())
+  asset           Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+}
+
+model Note {
+  id          Int      @id @default(autoincrement())
+  title       String
+  content     String
+  priority    String   @default("NORMAL") // LOW, NORMAL, HIGH
+  isCompleted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Stripe Integration Models
+model StripeTransaction {
+  id              Int       @id @default(autoincrement())
+  stripeId        String    @unique  // Stripe payout/charge ID
+  type            String    // "payout", "charge", "refund"
+  amount          Float
+  currency        String
+  customerCountry String?   // ISO landskod för OSS
+  vatRate         Float?    // Momssats som användes
+  vatAmount       Float?
+  stripeFee       Float?
+  netAmount       Float?    // Belopp efter avgifter
+  status          String    @default("pending") // "pending", "processed", "failed"
+  rawData         String?   // JSON från Stripe
+  transactionId   Int?      // Länk till verifikation
+  description     String?
+  createdAt       DateTime  @default(now())
+  processedAt     DateTime?
+  updatedAt       DateTime  @updatedAt
+}
+
+model OSSReport {
+  id            Int      @id @default(autoincrement())
+  quarter       Int      // 1-4
+  year          Int
+  country       String   // ISO landskod
+  countryName   String?  // Läsbart landsnamn
+  vatRate       Float
+  taxableAmount Float    // Beskattningsunderlag
+  vatAmount     Float    // Momsbelopp
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
