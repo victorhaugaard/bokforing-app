@@ -5,8 +5,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Account {
@@ -146,4 +147,89 @@ model OSSReport {
   vatAmount     Float    // Momsbelopp
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+// Faktura & Offert-modeller
+model Customer {
+  id              Int       @id @default(autoincrement())
+  name            String
+  orgNumber       String?   // Org.nr / personnummer
+  email           String?
+  phone           String?
+  address         String?
+  postalCode      String?
+  city            String?
+  country         String?   @default("Sverige")
+  notes           String?
+  invoices        Invoice[]
+  quotes          Quote[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Invoice {
+  id              Int           @id @default(autoincrement())
+  invoiceNumber   String        @unique
+  customerId      Int
+  customer        Customer      @relation(fields: [customerId], references: [id])
+  issueDate       DateTime
+  dueDate         DateTime
+  status          String        @default("DRAFT") // DRAFT, SENT, PAID, OVERDUE, CANCELLED
+  currency        String        @default("SEK")
+  vatRate         Float         @default(25)       // Momssats i %
+  notes           String?
+  paymentTerms    String?       @default("30 dagar netto")
+  ourReference    String?
+  yourReference   String?
+  items           InvoiceItem[]
+  subtotal        Float         @default(0)
+  vatAmount       Float         @default(0)
+  totalAmount     Float         @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model InvoiceItem {
+  id          Int     @id @default(autoincrement())
+  invoiceId   Int
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Float   @default(1)
+  unit        String? @default("st")
+  unitPrice   Float
+  vatRate     Float   @default(25)
+  amount      Float   // quantity * unitPrice
+}
+
+model Quote {
+  id            Int         @id @default(autoincrement())
+  quoteNumber   String      @unique
+  customerId    Int
+  customer      Customer    @relation(fields: [customerId], references: [id])
+  issueDate     DateTime
+  validUntil    DateTime
+  status        String      @default("DRAFT") // DRAFT, SENT, ACCEPTED, DECLINED, EXPIRED
+  currency      String      @default("SEK")
+  vatRate       Float       @default(25)
+  notes         String?
+  ourReference  String?
+  yourReference String?
+  items         QuoteItem[]
+  subtotal      Float       @default(0)
+  vatAmount     Float       @default(0)
+  totalAmount   Float       @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model QuoteItem {
+  id          Int    @id @default(autoincrement())
+  quoteId     Int
+  quote       Quote  @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Float  @default(1)
+  unit        String? @default("st")
+  unitPrice   Float
+  vatRate     Float  @default(25)
+  amount      Float  // quantity * unitPrice
 }

@@ -51,3 +51,6 @@ prisma/*.db-journal
 # Uploads folder (user content)
 public/uploads/*
 !public/uploads/.gitkeep
+
+# Backups (DB copies — keep folder but ignore files)
+backups/*.db

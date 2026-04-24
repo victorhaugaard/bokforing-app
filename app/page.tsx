@@ -9,6 +9,8 @@ import Statistics from './components/Statistics';
 import Assets from './components/Assets';
 import Notes from './components/Notes';
 import StripeTransactions from './components/StripeTransactions';
+import Invoices from './components/Invoices';
+import BackupManager from './components/BackupManager';
 import { useTheme } from './components/ThemeProvider';
 
 // Logo Component
@@ -58,13 +60,14 @@ function Particles() {
   );
 }
 
-type TabType = 'transactions' | 'recurring' | 'assets' | 'statistics' | 'notes' | 'stripe' | 'export';
+type TabType = 'transactions' | 'recurring' | 'assets' | 'statistics' | 'invoices' | 'notes' | 'stripe' | 'export';
 
 const tabs: { id: TabType; label: string; icon: string }[] = [
   { id: 'transactions', label: 'Verifikationer', icon: '📋' },
   { id: 'recurring', label: 'Återkommande', icon: '🔄' },
   { id: 'assets', label: 'Inventarier', icon: '🏢' },
   { id: 'statistics', label: 'Statistik', icon: '📊' },
+  { id: 'invoices', label: 'Fakturor', icon: '🧾' },
   { id: 'stripe', label: 'Stripe & OSS', icon: '💳' },
   { id: 'notes', label: 'Anteckningar', icon: '📝' },
   { id: 'export', label: 'Exportera', icon: '📤' },
@@ -79,6 +82,14 @@ export default function Home() {
 
   useEffect(() => {
     fetchTransactions();
+    // Auto-backup once per day
+    const lastBackup = localStorage.getItem('lastAutoBackup');
+    const today = new Date().toDateString();
+    if (lastBackup !== today) {
+      fetch('/api/backup', { method: 'POST' })
+        .then(() => localStorage.setItem('lastAutoBackup', today))
+        .catch(() => {});
+    }
   }, []);
 
   const fetchTransactions = async () => {
@@ -186,13 +197,16 @@ export default function Home() {
           <Assets />
         ) : activeTab === 'statistics' ? (
           <Statistics />
+        ) : activeTab === 'invoices' ? (
+          <Invoices />
         ) : activeTab === 'notes' ? (
           <Notes />
         ) : activeTab === 'stripe' ? (
           <StripeTransactions />
         ) : (
-          <div className="max-w-2xl mx-auto">
+          <div className="max-w-2xl mx-auto space-y-8">
             <ExportSIE />
+            <BackupManager />
           </div>
         )}
       </main>
